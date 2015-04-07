@@ -9,123 +9,146 @@ jQuery ($) ->
             ;
 
     root.popupSettings =
-        blackoutId: 'popup-blackout'
+        blackoutClass: 'popup-blackout'
         closeClass: 'popup-close'
-        closeSpriteClass: 'sprite-close'
-        contentId: 'popup-content'
-        popupId: 'popup-window'
+        closeExtraClass: 'sprite-close'
+        contentClass: 'popup-content'
+        popupExtraClass: false
 
-        popupPudding: 25
-        popupMinWidth: 400
-        popupMinHeight: 200
 
-        popupStack: []
+        prevPopup: false
+        url: false
 
-        make: (c) ->
-            p = popupSettings
-            $popup = $ "<aside id=#{p.popupId}>"
-                .append $("<i class=#{p.closeClass}>").addClass p.closeSpriteClass
-                .append $("<section id=#{p.contentId}>").html c
+        add: (cntnt, stngs) ->
+            $popup = $ ".popup-window"
 
-        add: (c) ->
-            p = popupSettings
-            $popup = $ "#{p.popupId}"
-
+            # stack
             if $popup.size()
-                $popup.remove()
-                p.popupStack.push $popup
+                stngs.prevPopup = $popup
+                $popup.removeClass 'active'
             else
-                $("<div id=#{p.blackoutId}>")
-                    .css
-                        visibility: 'hidden'
+                $('<div>')
+                    .addClass stngs.blackoutClass
                     .appendTo 'body'
 
-            p.make(c)
-                .css
-                    visibility: 'hidden'
+            # generate
+            $popup = $('<aside>')
+                .addClass 'popup-window'
+                .addClass stngs.popupExtraClass
+                .append $('<i>').addClass(stngs.closeClass).addClass stngs.closeExtraClass
                 .appendTo 'body'
+            $content = $('<section>')
+                .addClass stngs.contentClass
+                .append $ cntnt
+                .appendTo $popup
 
-        del: () ->
-            p = popupSettings
-            $("#{p.popupId}").remove()
-
-            if p.popupStack.length
-                p.popupStack.pop().appendTo 'body'
-            else
-                $("#{p.blackoutId}").remove()
-
-        show: () ->
-            $('#popup-blackout').css
-                visibility: 'visible'
-            $('#popup-window').css
-                visibility: 'visible'
-
-    popupHandlers =
-        popupBusy: false
-
-        close: () ->
-            popupSettings.del()
-
-        position: () ->
-            d = popupSettings.popupPudding * 2
-            width = parseInt($('#popup-content').outerWidth(true)) + d
-            height = parseInt($('#popup-content').outerHeight(true)) + d
-            minWidth = popupSettings.popupMinWidth
-            minHeight = popupSettings.popupMinHeight
+            # size and position
+            width = parseInt $content.outerWidth true
+            width += parseInt $popup.css 'padding-left'
+            width += parseInt $popup.css 'padding-right'
+            minWidth = parseInt $popup.css 'min-width'
             width = width > minWidth and width or minWidth
+
+            $popup
+                .css
+                    width: width
+                    'margin-left': -width/2
+
+            height = parseInt $content.outerHeight true
+            height += parseInt $popup.css 'padding-top'
+            height += parseInt $popup.css 'padding-bottom'
+            minHeight = parseInt $popup.css 'min-height'
             height = height > minHeight and height or minHeight
 
-            $('#popup-window').css
-                'margin-left': -width/2
-                'margin-top': -height/2
-                height: height
-                width: width
+            $popup
+                .data 'popupSettings', stngs
+                .css
+                    'margin-top': -height/2
+                    height: height
+                .addClass 'active'
 
-        ajax: () ->
-            url = $(@).attr('data-url')
-            if not popupHandlers.popupBusy and url
-                popupHandlers.popupBusy = true
+        del: (stngs) ->
+            $popup = $(".popup-window.active")
 
-                $.get url, (response) ->
-                    popupSettings.add response
-                    popupHandlers.position()
-                    popupHandlers.show()
-                    popupHandlers.popupBusy = false
+            if stngs.prevPopup
+                stngs.prevPopup.addClass 'active'
+            else
+                $(".#{stngs.blackoutClass}").remove()
 
-        serverError: () ->
-            msg = '<article id="popup-error">
-                    <h3>Ooops!</h3>
+            $popup.remove()
+
+    popupHandlers =
+
+        init: (jsInit, self=false) ->
+            settings = {}
+
+            # HTML attr init
+            if self
+                except = ['add', 'del',]
+                for k of popupSettings
+                    if $.inArray(k, except) is -1
+                        attr = "data-#{k}"
+                        if typeof($(self).attr attr) != 'undefined'
+                            settings[k] = $(self).attr attr
+
+            # deep clone
+            $.extend true, {}, popupSettings, jsInit, settings
+
+        close: () ->
+            stngs = $(@).parents('.popup-window').data 'popupSettings'
+            stngs.del stngs
+
+        ajax: (e, jsInit) ->
+            settings = popupHandlers.init jsInit, @
+
+            if settings.url
+                $.ajax
+                    url: settings.url
+                    async: false
+                    success: (response) ->
+                        popupSettings.add response, settings
+                        $(document).trigger 'popupAjaxSuccess'
+            else
+                log 'ERROR: specify url'
+
+        serverError: (e, jsInit) ->
+            settings = popupHandlers.init jsInit
+
+            if settings.popupExtraClass
+                settings.popupExtraClass += ' popup-error'
+            else
+                settings.popupExtraClass = 'popup-error'
+
+            msg = '<h3>Ooops!</h3>
                     <p>На сервере произошла ошибка.</p>
                     <p>Простите, мы скоро исправимся!</p>
                     <footer>
                         <button class="btn popup-close">продолжить</button>
-                    </footer>
-                </article>'
-            popupSettings.add msg
-            popupHandlers.position()
-            popupHandlers.show()
+                    </footer>'
+            popupSettings.add msg, settings
 
-        formError: () ->
-            msg = '<article id="popup-error">
-                    <h3>Ooops!</h3>
+        formError: (e, jsInit) ->
+            settings = popupHandlers.init jsInit
+
+            if settings.popupExtraClass
+                settings.popupExtraClass += ' popup-error'
+            else
+                settings.popupExtraClass = 'popup-error'
+
+            msg = '<h3>Ooops!</h3>
                     <p>Вы допустили ошибку при заполнении формы.</p>
                     <p>Пропущенные поля мы выделили для Вас красным цветом.</p>
                     <footer>
                         <button class="btn popup-close">продолжить</button>
-                    </footer>
-                </article>'
-            popupSettings.add msg
-            popupHandlers.position()
-            popupHandlers.show()
+                    </footer>'
+            popupSettings.add msg, settings
 
-        popup: (e, msg='<p>empty</p>') ->
-            popupSettings.add msg
-            popupHandlers.position()
-            popupHandlers.show()
+        popup: (e, msg='<p>empty</p>', jsInit) ->
+            settings = popupHandlers.init jsInit
+            popupSettings.add msg, settings
 
     $(document).on 'click', '.popup-launcher', popupHandlers.ajax
     $(document).on 'click', '.popup-close', popupHandlers.close
     $(document).on 'formError', popupHandlers.formError
     $(document).on 'popup', popupHandlers.popup
     $(document).on 'serverError', popupHandlers.serverError
-    # $(document).ajaxError popupHandlers.serverError
