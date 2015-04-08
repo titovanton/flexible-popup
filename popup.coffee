@@ -20,7 +20,7 @@ jQuery ($) ->
         url: false
 
         add: (cntnt, stngs) ->
-            $popup = $ ".popup-window"
+            $popup = $ ".popup-window:last-child"
 
             # stack
             if $popup.size()
@@ -106,10 +106,10 @@ jQuery ($) ->
                     url: settings.url
                     async: false
                     success: (response) ->
-                        popupSettings.add response, settings
-                        $(document).trigger 'popupAjaxSuccess'
+                        $popup = popupSettings.add response, settings
+                        $popup.trigger 'popupAjaxSuccess'
             else
-                log 'ERROR: specify url'
+                log 'POPUP: [ajax] specify a URL'
 
         serverError: (e, jsInit) ->
             settings = popupHandlers.init jsInit
@@ -136,10 +136,10 @@ jQuery ($) ->
                 settings.popupExtraClass = 'popup-error'
 
             msg = '<h3>Ooops!</h3>
-                    <p>Вы допустили ошибку при заполнении формы.</p>
+                    <p>Вы допустили ошибку при при вводе данных.</p>
                     <p>Пропущенные поля мы выделили для Вас красным цветом.</p>
                     <footer>
-                        <button class="btn popup-close">продолжить</button>
+                        <button class="btn popup-close">исправить</button>
                     </footer>'
             popupSettings.add msg, settings
 
