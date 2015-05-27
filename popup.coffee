@@ -8,41 +8,61 @@ jQuery ($) ->
         catch e
             ;
 
-    root.popupSettings =
-        blackoutClass: 'popup-blackout'
+
+    # Stack Item class, contains popup src
+    class FlexiblePopupItem
+        popupClass: 'popup-window'
         closeClass: 'popup-close'
-        closeExtraClass: 'sprite-close'
         contentClass: 'popup-content'
+
         popupExtraClass: false
-
-
-        prevPopup: false
+        closeExtraClass: 'sprite-close'
+        content = false
         url: false
 
-        add: (cntnt, stngs) ->
-            $popup = $ ".popup-window:last-child"
+        constructor: (options) ->
+            {@popupExtraClass, @closeExtraClass, @content, @url} = options
 
-            # stack
-            if $popup.size()
-                stngs.prevPopup = $popup
-                $popup.removeClass 'active'
-            else
-                $('<div>')
-                    .addClass stngs.blackoutClass
-                    .appendTo 'body'
+            if not flexiblePopupStack?
+                log 'FlexiblePopup: [ERROR] You have to instance FlexiblePopupStack first'
 
-            # generate
+            if @url
+
+                if flexiblePopupStack.contentCache[@url]?
+                    @content = flexiblePopupStack.contentCache[@url]
+                else
+                    $.ajax
+                        url: @url
+                        async: false
+                        success: ((response) -> @content = response).bind @
+
+                    flexiblePopupStack.contentCache[@url] = @content
+
+        generate: () ->
             $popup = $('<aside>')
-                .addClass 'popup-window'
-                .addClass stngs.popupExtraClass
-                .append $('<i>').addClass(stngs.closeClass).addClass stngs.closeExtraClass
-                .appendTo 'body'
-            $content = $('<section>')
-                .addClass stngs.contentClass
-                .append $ cntnt
+                .addClass @popupClass
+                .addClass @popupExtraClass
+
+            $('<i>')
+                .addClass @closeClass
+                .addClass @closeExtraClass
                 .appendTo $popup
 
-            # size and position
+            $content = $('<section>')
+                .addClass @contentClass
+                .append $ @content
+                .appendTo $popup
+
+            $popup
+
+        positionedInBody: ($popup) ->
+            $popup
+                .css
+                    visibility: 'hidden'
+                .appendTo 'body'
+
+            $content = $popup.find ".#{@contentClass}"
+
             width = parseInt $content.outerWidth true
             width += parseInt $popup.css 'padding-left'
             width += parseInt $popup.css 'padding-right'
@@ -61,94 +81,113 @@ jQuery ($) ->
             height = height > minHeight and height or minHeight
 
             $popup
-                .data 'popupSettings', stngs
                 .css
-                    'margin-top': -height/2
                     height: height
-                .addClass 'active'
+                    'margin-top': -height/2
+                    visibility: 'visible'
 
-        del: (stngs) ->
-            $popup = $(".popup-window.active")
+            $popup.trigger 'flexiblePopupShown'
 
-            if stngs.prevPopup
-                stngs.prevPopup.addClass 'active'
+
+    # Stack of Popups
+    class FlexiblePopupStack
+        blackoutClass: 'popup-blackout'
+        contentCache: {}
+        stack: []
+
+        push: (item) ->
+
+            if @stack.length
+                $ ".#{FlexiblePopupItem::popupClass}"
+                    .remove()
+
+            @stack.push item
+
+            $popup = item.generate()
+            $popup = item.positionedInBody $popup
+
+        pop: () ->
+            @stack.pop()
+
+            $ ".#{FlexiblePopupItem::popupClass}"
+                .remove()
+
+            if not @stack.length
+                $ ".#{@blackoutClass}"
+                    .remove()
             else
-                $(".#{stngs.blackoutClass}").remove()
+                [..., last] = @stack
+                $popup = last.generate()
+                $popup = last.positionedInBody $popup
 
-            $popup.remove()
 
-    popupHandlers =
+    # Handlers
+    instanceStack = () ->
 
-        init: (jsInit, self=false) ->
-            settings = {}
+        if not flexiblePopupStack?
+            root.flexiblePopupStack = new FlexiblePopupStack
 
-            # HTML attr init
-            if self
-                except = ['add', 'del',]
-                for k of popupSettings
-                    if $.inArray(k, except) is -1
-                        attr = "data-#{k}"
-                        if typeof($(self).attr attr) != 'undefined'
-                            settings[k] = $(self).attr attr
+        # blackout first
+        if not flexiblePopupStack.stack.length
+            $('<div>')
+                .addClass flexiblePopupStack.blackoutClass
+                .appendTo 'body'
 
-            # deep clone
-            $.extend true, {}, popupSettings, jsInit, settings
+        flexiblePopupStack
 
-        close: () ->
-            stngs = $(@).parents('.popup-window').data 'popupSettings'
-            stngs.del stngs
 
-        ajax: (e, jsInit) ->
-            settings = popupHandlers.init jsInit, @
+    jsInit = (init) ->
+        stack = instanceStack()
+        item = new FlexiblePopupItem init
+        stack.push item
 
-            if settings.url
-                $.ajax
-                    url: settings.url
-                    async: false
-                    success: (response) ->
-                        $popup = popupSettings.add response, settings
-                        $popup.trigger 'popupAjaxSuccess'
-            else
-                log 'POPUP: [ajax] specify a URL'
 
-        serverError: (e, jsInit) ->
-            settings = popupHandlers.init jsInit
+    htmlInit = () ->
+        stack = instanceStack()
+        init = {}
+        $this = $ @
 
-            if settings.popupExtraClass
-                settings.popupExtraClass += ' popup-error'
-            else
-                settings.popupExtraClass = 'popup-error'
+        filter = ['popupExtraClass', 'closeExtraClass', 'content', 'url',]
 
-            msg = '<h3>Ooops!</h3>
-                    <p>На сервере произошла ошибка.</p>
-                    <p>Простите, мы скоро исправимся!</p>
-                    <footer>
-                        <button class="btn popup-close">продолжить</button>
-                    </footer>'
-            popupSettings.add msg, settings
+        for k in filter
+            attr = "data-#{k}"
 
-        formError: (e, jsInit) ->
-            settings = popupHandlers.init jsInit
+            if $this.attr(attr)?
+                init[k] = $this.attr attr
 
-            if settings.popupExtraClass
-                settings.popupExtraClass += ' popup-error'
-            else
-                settings.popupExtraClass = 'popup-error'
+        item = new FlexiblePopupItem init
+        stack.push item
 
-            msg = '<h3>Ooops!</h3>
-                    <p>Вы допустили ошибку при при вводе данных.</p>
-                    <p>Пропущенные поля мы выделили для Вас красным цветом.</p>
-                    <footer>
-                        <button class="btn popup-close">исправить</button>
-                    </footer>'
-            popupSettings.add msg, settings
 
-        popup: (e, msg='<p>empty</p>', jsInit) ->
-            settings = popupHandlers.init jsInit
-            popupSettings.add msg, settings
+    close = () ->
+        stack = instanceStack()
+        stack.pop()
 
-    $(document).on 'click', '.popup-launcher', popupHandlers.ajax
-    $(document).on 'click', '.popup-close', popupHandlers.close
-    $(document).on 'formError', popupHandlers.formError
-    $(document).on 'popup', popupHandlers.popup
-    $(document).on 'serverError', popupHandlers.serverError
+
+    serverError = () ->
+        jsInit
+            popupExtraClass: 'popup-error'
+            content: '<h3>Ooops!</h3>
+                        <p>На сервере произошла ошибка.</p>
+                        <p>Простите, мы скоро исправимся!</p>
+                        <footer>
+                            <button class="btn popup-close">продолжить</button>
+                        </footer>'
+
+
+    formError = () ->
+        jsInit
+            popupExtraClass: 'popup-error'
+            content: '<h3>Ooops!</h3>
+                        <p>Вы допустили ошибку при при вводе данных.</p>
+                        <p>Пропущенные поля мы выделили для Вас красным цветом.</p>
+                        <footer>
+                            <button class="btn popup-close">исправить</button>
+                        </footer>'
+
+
+    $(document).on 'click', '.popup-launcher', htmlInit
+    $(document).on 'click', '.popup-close', close
+    $(document).on 'formError', formError
+    $(document).on 'popup', jsInit
+    $(document).on 'serverError', serverError
