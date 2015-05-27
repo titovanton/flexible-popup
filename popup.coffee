@@ -55,7 +55,7 @@ jQuery ($) ->
 
             $popup
 
-        positionedInBody: ($popup) ->
+        drawPopup: ($popup) ->
             $popup
                 .css
                     visibility: 'hidden'
@@ -67,24 +67,25 @@ jQuery ($) ->
             width += parseInt $popup.css 'padding-left'
             width += parseInt $popup.css 'padding-right'
             minWidth = parseInt $popup.css 'min-width'
-            width = width > minWidth and width or minWidth
 
-            $popup
-                .css
-                    width: width
-                    'margin-left': -width/2
+            if width < minWidth
+                width = minWidth
+                $popup.css width: width
+
+            $popup.css 'margin-left': -width/2
 
             height = parseInt $content.outerHeight true
             height += parseInt $popup.css 'padding-top'
             height += parseInt $popup.css 'padding-bottom'
             minHeight = parseInt $popup.css 'min-height'
-            height = height > minHeight and height or minHeight
 
-            $popup
-                .css
-                    height: height
-                    'margin-top': -height/2
-                    visibility: 'visible'
+            if height < minHeight
+                height = minHeight
+                $popup.css height: height
+
+            $popup.css
+                'margin-top': -height/2
+                visibility: 'visible'
 
             $popup.trigger 'flexiblePopupShown'
 
@@ -104,7 +105,7 @@ jQuery ($) ->
             @stack.push item
 
             $popup = item.generate()
-            $popup = item.positionedInBody $popup
+            $popup = item.drawPopup $popup
 
         pop: () ->
             @stack.pop()
@@ -118,7 +119,20 @@ jQuery ($) ->
             else
                 [..., last] = @stack
                 $popup = last.generate()
-                $popup = last.positionedInBody $popup
+                $popup = last.drawPopup $popup
+
+        # redraw: () ->
+        #     [..., last] = @stack
+
+        #     if last?
+        #         $popup = $ ".#{FlexiblePopupItem::popupClass}"
+        #             # .remove()
+
+        #         $popup.css
+        #             width: 'auto'
+        #             height: 'auto'
+
+        #         # @stack.drawPopup $popup
 
 
     # Handlers
@@ -164,6 +178,11 @@ jQuery ($) ->
         stack.pop()
 
 
+    # redrawPopup = () ->
+    #     stack = instanceStack()
+    #     stack.redraw()
+
+
     serverError = () ->
         jsInit
             popupExtraClass: 'popup-error'
@@ -191,3 +210,4 @@ jQuery ($) ->
     $(document).on 'formError', formError
     $(document).on 'popup', jsInit
     $(document).on 'serverError', serverError
+    # $(document).on 'redrawPopup', redrawPopup
