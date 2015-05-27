@@ -150,7 +150,7 @@ jQuery ($) ->
         flexiblePopupStack
 
 
-    jsInit = (init) ->
+    jsInit = (e, init) ->
         stack = instanceStack()
         item = new FlexiblePopupItem init
         stack.push item
@@ -183,26 +183,36 @@ jQuery ($) ->
     #     stack.redraw()
 
 
-    serverError = () ->
-        jsInit
-            popupExtraClass: 'popup-error'
-            content: '<h3>Ooops!</h3>
-                        <p>На сервере произошла ошибка.</p>
-                        <p>Простите, мы скоро исправимся!</p>
-                        <footer>
-                            <button class="btn popup-close">продолжить</button>
-                        </footer>'
+    serverError = (e, init) ->
+
+        if init['popupExtraClass']?
+            init['popupExtraClass'] += ' popup-error'
+        else
+            init['popupExtraClass'] = 'popup-error'
+
+        init['content'] = '<h3>Ooops!</h3>
+                            <p>На сервере произошла ошибка.</p>
+                            <p>Простите, мы скоро исправимся!</p>
+                            <footer>
+                                <button class="btn popup-close">продолжить</button>
+                            </footer>'
+        jsInit e, init
 
 
-    formError = () ->
-        jsInit
-            popupExtraClass: 'popup-error'
-            content: '<h3>Ooops!</h3>
-                        <p>Вы допустили ошибку при при вводе данных.</p>
-                        <p>Пропущенные поля мы выделили для Вас красным цветом.</p>
-                        <footer>
-                            <button class="btn popup-close">исправить</button>
-                        </footer>'
+    formError = (e, init) ->
+
+        if init['popupExtraClass']?
+            init['popupExtraClass'] += ' popup-error'
+        else
+            init['popupExtraClass'] = 'popup-error'
+
+        init['content'] = '<h3>Ooops!</h3>
+                            <p>Вы допустили ошибку при при вводе данных.</p>
+                            <p>Пропущенные поля мы выделили для Вас красным цветом.</p>
+                            <footer>
+                                <button class="btn popup-close">исправить</button>
+                            </footer>'
+        jsInit e, init
 
 
     $(document).on 'click', '.popup-launcher', htmlInit
