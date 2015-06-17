@@ -25,18 +25,19 @@ jQuery ($) ->
 
             if not flexiblePopupStack?
                 log 'FlexiblePopup: [ERROR] You have to instance FlexiblePopupStack first'
+            else
 
-            if @url
+                if @url
 
-                if flexiblePopupStack.contentCache[@url]?
-                    @content = flexiblePopupStack.contentCache[@url]
-                else
-                    $.ajax
-                        url: @url
-                        async: false
-                        success: ((response) -> @content = response).bind @
+                    if @url of flexiblePopupStack.contentCache
+                        @content = flexiblePopupStack.contentCache[@url]
+                    else
+                        $.ajax
+                            url: @url
+                            async: false
+                            success: ((response) -> @content = response).bind @
 
-                    flexiblePopupStack.contentCache[@url] = @content
+                        flexiblePopupStack.contentCache[@url] = @content
 
         generate: () ->
             $popup = $('<aside>')
@@ -121,19 +122,6 @@ jQuery ($) ->
                 $popup = last.generate()
                 $popup = last.drawPopup $popup
 
-        # redraw: () ->
-        #     [..., last] = @stack
-
-        #     if last?
-        #         $popup = $ ".#{FlexiblePopupItem::popupClass}"
-        #             # .remove()
-
-        #         $popup.css
-        #             width: 'auto'
-        #             height: 'auto'
-
-        #         # @stack.drawPopup $popup
-
 
     # Handlers
     instanceStack = () ->
@@ -178,17 +166,15 @@ jQuery ($) ->
         stack.pop()
 
 
-    # redrawPopup = () ->
-    #     stack = instanceStack()
-    #     stack.redraw()
-
-
     serverError = (e, init) ->
 
-        if init['popupExtraClass']?
-            init['popupExtraClass'] += ' popup-error'
+        if not init?
+            init =
+                popupExtraClass: 'popup-error'
+        else if 'popupExtraClass' of init
+            init.popupExtraClass += ' popup-error'
         else
-            init['popupExtraClass'] = 'popup-error'
+            init.popupExtraClass = 'popup-error'
 
         init['content'] = '<h3>Ooops!</h3>
                             <p>На сервере произошла ошибка.</p>
@@ -201,10 +187,13 @@ jQuery ($) ->
 
     formError = (e, init) ->
 
-        if init['popupExtraClass']?
-            init['popupExtraClass'] += ' popup-error'
+        if not init?
+            init =
+                popupExtraClass: 'popup-error'
+        else if 'popupExtraClass' of init
+            init.popupExtraClass += ' popup-error'
         else
-            init['popupExtraClass'] = 'popup-error'
+            init.popupExtraClass = 'popup-error'
 
         init['content'] = '<h3>Ooops!</h3>
                             <p>Вы допустили ошибку при при вводе данных.</p>
@@ -220,4 +209,3 @@ jQuery ($) ->
     $(document).on 'formError', formError
     $(document).on 'popup', jsInit
     $(document).on 'serverError', serverError
-    # $(document).on 'redrawPopup', redrawPopup
