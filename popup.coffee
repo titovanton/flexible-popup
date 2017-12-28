@@ -206,6 +206,7 @@ jQuery ($) ->
 
     $(document).on 'click', '.popup-launcher', htmlInit
     $(document).on 'click', '.popup-close', close
+    $(document).on 'click', '.popup-blackout', close
     $(document).on 'formError', formError
     $(document).on 'popup', jsInit
     $(document).on 'serverError', serverError
